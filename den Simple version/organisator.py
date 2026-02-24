@@ -14,10 +14,13 @@ import ctypes
 import hashlib
 import datetime
 import threading
+import json
 from pathlib import Path
 
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+
+from sprog import T, TEKSTER, SPROG_LISTE, SprogVælger, init_sprog, set_sprog
 
 try:
     from PIL import Image
@@ -70,7 +73,7 @@ RAW_TYPER = {".cr2", ".nef", ".arw", ".dng", ".raw", ".orf", ".rw2",
 # ───────────────────────────────────────────────────
 #  KONSTANTER
 # ───────────────────────────────────────────────────
-VERSION = "3.8"
+VERSION = "4.0"
 
 MÅNEDER = {
     1: "01_Januar",    2: "02_Februar",   3: "03_Marts",
@@ -302,7 +305,7 @@ def find_filer(rødder, typer, dest, log=None, min_mb=None):
                             continue
                     filer.append(fuld)
     if log and mapper_sprunget:
-        log(f"  ⚠️  {len(mapper_sprunget)} mapper sprunget over (system/spil-mapper)")
+        log(T["log_skipped"].format(len(mapper_sprunget)))
     return filer
 
 
@@ -311,16 +314,16 @@ def find_filer(rødder, typer, dest, log=None, min_mb=None):
 # ───────────────────────────────────────────────────
 def kør_billeder(rødder, dest, log, progress, stop_flag):
     if not PILLOW_OK and not EXIFREAD_OK:
-        log("❌  Hverken Pillow eller exifread er installeret!", farve=RØD)
+        log(T["log_no_pillow"], farve=RØD)
         return
-    log("🔍  Scanner efter billedfiler...")
+    log(T["log_scan_photos"])
     filer = find_filer(rødder, BILLEDE_TYPER, dest, log=log)
-    log(f"✅  Fandt {len(filer)} billedfiler\n")
+    log(T["log_found_photos"].format(len(filer)) + "\n")
 
     flyttet = ingen_exif_dato = fejl = 0
     for i, fil in enumerate(filer, 1):
         if stop_flag():
-            log("⛔  Stoppet af bruger.", farve=GUL); break
+            log(T["log_stopped"], farve=GUL); break
         progress(i, len(filer), os.path.basename(fil))
 
         # Forsøg EXIF-dato
@@ -351,34 +354,34 @@ def kør_billeder(rødder, dest, log, progress, stop_flag):
             flyttet += 1
             # Vis en statuslinje for hvert 10. billede
             if flyttet % 10 == 0:
-                log(f"  ✔  {flyttet} billeder flyttet...")
+                log(T["log_moved_n"].format(flyttet))
         except Exception as e:
-            log(f"  ✘ FEJL: {os.path.basename(fil)}: {e}", farve=RØD)
+            log(T["log_err"].format(os.path.basename(fil), e), farve=RØD)
             fejl += 1
 
     log(f"\n══════════════════════════════", farve=GRØN)
-    log(f"  🏁  Faerdig!", farve=GRØN)
-    log(f"  Billeder flyttet:     {flyttet}", farve=GRØN)
-    log(f"  Brugte filens dato:   {ingen_exif_dato}", farve=GUL)
-    log(f"  Fejl:                 {fejl}", farve=RØD if fejl else GRØN)
+    log(T["log_done"], farve=GRØN)
+    log(T["log_photos_moved"].format(flyttet), farve=GRØN)
+    log(T["log_filedate"].format(ingen_exif_dato), farve=GUL)
+    log(T["log_errors"].format(fejl), farve=RØD if fejl else GRØN)
     log(f"══════════════════════════════", farve=GRØN)
 
 
 def kør_billeder_gps(rødder, dest, log, progress, stop_flag):
     """Sorterer billeder efter GPS-lokation: Dest/Land/By/fil"""
     if not GEOCODER_OK:
-        log("❌  reverse_geocoder er ikke installeret!", farve=RØD)
-        log("   Kør:  py -m pip install reverse_geocoder", farve=GUL)
+        log(T["log_no_geocoder"], farve=RØD)
+        log(T["log_install_geo"], farve=GUL)
         return
 
-    log("🔍  Scanner efter billedfiler med GPS-data...")
+    log(T["log_scan_gps"])
     filer = find_filer(rødder, BILLEDE_TYPER, dest, log=log)
-    log(f"✅  Fandt {len(filer)} billedfiler\n")
+    log(T["log_found_photos"].format(len(filer)) + "\n")
 
     flyttet = ingen_gps = fejl = 0
     for i, fil in enumerate(filer, 1):
         if stop_flag():
-            log("⛔  Stoppet af bruger.", farve=GUL); break
+            log(T["log_stopped"], farve=GUL); break
         progress(i, len(filer), os.path.basename(fil))
 
         gps = hent_gps(fil)
@@ -394,27 +397,27 @@ def kør_billeder_gps(rødder, dest, log, progress, stop_flag):
             shutil.move(fil, unikt_filnavn(mappe, os.path.basename(fil)))
             flyttet += 1
             if flyttet % 10 == 0:
-                log(f"  ✔  {flyttet} billeder flyttet...")
+                log(T["log_moved_n"].format(flyttet))
         except Exception as e:
-            log(f"  ✘ FEJL: {os.path.basename(fil)}: {e}", farve=RØD)
+            log(T["log_err"].format(os.path.basename(fil), e), farve=RØD)
             fejl += 1
 
     log(f"\n══════════════════════════════", farve=GRØN)
-    log(f"  🏁  Faerdig!", farve=GRØN)
-    log(f"  Billeder flyttet:  {flyttet}", farve=GRØN)
-    log(f"  Ingen GPS-data:    {ingen_gps}", farve=GUL)
-    log(f"  Fejl:              {fejl}", farve=RØD if fejl else GRØN)
+    log(T["log_done"], farve=GRØN)
+    log(T["log_gps_moved"].format(flyttet), farve=GRØN)
+    log(T["log_no_gps"].format(ingen_gps), farve=GUL)
+    log(T["log_errors"].format(fejl), farve=RØD if fejl else GRØN)
     log(f"══════════════════════════════", farve=GRØN)
 
 
 def kør_videoer(rødder, dest, log, progress, stop_flag):
-    log("🔍  Scanner efter videofiler...")
+    log(T["log_scan_videos"])
     filer = find_filer(rødder, VIDEO_TYPER, dest, log=log, min_mb=MIN_VIDEO_MB)
-    log(f"✅  Fandt {len(filer)} videofiler\n")
+    log(T["log_found_videos"].format(len(filer)) + "\n")
     flyttet = fejl = 0
     for i, fil in enumerate(filer, 1):
         if stop_flag():
-            log("⛔  Stoppet af bruger.", farve=GUL); break
+            log(T["log_stopped"], farve=GUL); break
         progress(i, len(filer), os.path.basename(fil))
         dato = fil_dato(fil)
         år  = str(dato.year)      if dato else "Ukendt_dato"
@@ -425,21 +428,21 @@ def kør_videoer(rødder, dest, log, progress, stop_flag):
             shutil.move(fil, unikt_filnavn(mappe, os.path.basename(fil)))
             flyttet += 1
         except Exception as e:
-            log(f"  ✘ {os.path.basename(fil)}: {e}", farve=RØD); fejl += 1
+            log(T["log_err"].format(os.path.basename(fil), e), farve=RØD); fejl += 1
     log(f"\n══════════════════════════════", farve=GRØN)
-    log(f"  🏁  Faerdig!  Videoer flyttet: {flyttet}  |  Fejl: {fejl}", farve=GRØN)
+    log(T["log_video_done"].format(flyttet, fejl), farve=GRØN)
     log(f"══════════════════════════════", farve=GRØN)
 
 
 def kør_dokumenter(rødder, dest, log, progress, stop_flag):
-    log("🔍  Scanner efter dokumenter...")
+    log(T["log_scan_docs"])
     filer = find_filer(rødder, DOKUMENT_TYPER, dest, log=log)
-    log(f"✅  Fandt {len(filer)} dokumenter\n")
+    log(T["log_found_docs"].format(len(filer)) + "\n")
     tæller = {"Word": 0, "PDF": 0, "Excel": 0}
     fejl = 0
     for i, fil in enumerate(filer, 1):
         if stop_flag():
-            log("⛔  Stoppet af bruger.", farve=GUL); break
+            log(T["log_stopped"], farve=GUL); break
         progress(i, len(filer), os.path.basename(fil))
         ext   = Path(fil).suffix.lower()
         under = DOKUMENT_UNDERMAPPE.get(ext, "Andet")
@@ -449,11 +452,11 @@ def kør_dokumenter(rødder, dest, log, progress, stop_flag):
             shutil.move(fil, unikt_filnavn(mappe, os.path.basename(fil)))
             tæller[under] = tæller.get(under, 0) + 1
         except Exception as e:
-            log(f"  ✘ {os.path.basename(fil)}: {e}", farve=RØD); fejl += 1
+            log(T["log_err"].format(os.path.basename(fil), e), farve=RØD); fejl += 1
     log(f"\n══════════════════════════════", farve=GRØN)
-    log(f"  🏁  Faerdig!", farve=GRØN)
-    log(f"  Word:   {tæller['Word']}  |  PDF: {tæller['PDF']}  |  Excel: {tæller['Excel']}", farve=GRØN)
-    log(f"  Fejl:   {fejl}", farve=RØD if fejl else GRØN)
+    log(T["log_done"], farve=GRØN)
+    log(T["log_doc_done"].format(tæller['Word'], tæller['PDF'], tæller['Excel']), farve=GRØN)
+    log(T["log_doc_errors"].format(fejl), farve=RØD if fejl else GRØN)
     log(f"══════════════════════════════", farve=GRØN)
 
 
@@ -525,12 +528,12 @@ def find_dubletter_filer(rødder, log, progress, stop_flag):
     Returnerer { hash: [fil1, fil2, ...] } for grupper med 2+ filer.
     """
     alle_typer = BILLEDE_TYPER | VIDEO_TYPER | DOKUMENT_TYPER
-    log("🔍  Scanner efter filer...")
+    log(T["log_scan_files"])
     filer = find_filer(rødder, alle_typer, "", log=log)
-    log(f"✅  Fandt {len(filer)} filer\n")
+    log(T["log_found_files"].format(len(filer)) + "\n")
 
     # Trin 1: gruppe efter størrelse – spring unikke størrelser over (hurtigt)
-    log("⚙️  Grupperer efter størrelse...")
+    log(T["log_grouping"])
     str_grupper = {}
     for fil in filer:
         try:
@@ -539,18 +542,18 @@ def find_dubletter_filer(rødder, log, progress, stop_flag):
             pass
 
     kandidater = [f for lst in str_grupper.values() if len(lst) > 1 for f in lst]
-    log(f"  {len(kandidater)} kandidater videre til checksum-tjek\n")
+    log(T["log_candidates"].format(len(kandidater)) + "\n")
 
     if not kandidater:
-        log("✅  Ingen dubletter fundet.", farve=GRØN)
+        log(T["log_no_dupes"], farve=GRØN)
         return {}
 
     # Trin 2: hash kandidaterne
-    log("🔐  Beregner checksummer (kan tage lidt tid for store filer)...")
+    log(T["log_checksums"])
     hash_grupper = {}
     for i, fil in enumerate(kandidater, 1):
         if stop_flag():
-            log("⛔  Stoppet af bruger.", farve=GUL)
+            log(T["log_stopped"], farve=GUL)
             return {}
         progress(i, len(kandidater), os.path.basename(fil))
         h = hash_fil(fil)
@@ -569,9 +572,9 @@ def find_dubletter_filer(rødder, log, progress, stop_flag):
         total_spares = 0
 
     log(f"\n══════════════════════════════", farve=GRØN)
-    log(f"  🏁  Scanning faerdig!", farve=GRØN)
-    log(f"  Dublet-grupper:  {len(dubletter)}", farve=GRØN)
-    log(f"  Kan spare:       {_format_bytes(total_spares)}", farve=GRØN)
+    log(T["log_scan_complete"], farve=GRØN)
+    log(T["log_dupe_groups"].format(len(dubletter)), farve=GRØN)
+    log(T["log_can_save"].format(_format_bytes(total_spares)), farve=GRØN)
     log(f"══════════════════════════════", farve=GRØN)
     return dubletter
 
@@ -582,7 +585,7 @@ def find_dubletter_filer(rødder, log, progress, stop_flag):
 class DubletVindue(tk.Toplevel):
     def __init__(self, forælder, grupper):
         super().__init__(forælder)
-        self.title("Dublet-scanner – Resultater")
+        self.title(T["dupe_title"])
         self.configure(bg=BG)
         self.resizable(True, True)
         self.minsize(820, 520)
@@ -613,7 +616,7 @@ class DubletVindue(tk.Toplevel):
         top = tk.Frame(self, bg=ACCENT, pady=10)
         top.pack(fill="x")
         tk.Label(top,
-                 text=f"🔍  {total_grupper} dublet-grupper  ·  {total_dubletter} ekstra kopier  ·  Kan spare {_format_bytes(total_bytes)}",
+                 text=T["dupe_header"].format(total_grupper, total_dubletter, _format_bytes(total_bytes)),
                  font=("Segoe UI", 12, "bold"), bg=ACCENT, fg="white").pack()
 
         # ── Stats (opdateres ved klik) ─────────────────
@@ -642,10 +645,10 @@ class DubletVindue(tk.Toplevel):
             show="headings", selectmode="browse"
         )
         self._tree.heading("valg",      text="")
-        self._tree.heading("filnavn",   text="Filnavn")
-        self._tree.heading("sti",       text="Mappe")
-        self._tree.heading("størrelse", text="Størrelse")
-        self._tree.heading("dato",      text="Dato")
+        self._tree.heading("filnavn",   text=T["dupe_col_file"])
+        self._tree.heading("sti",       text=T["dupe_col_folder"])
+        self._tree.heading("størrelse", text=T["dupe_col_size"])
+        self._tree.heading("dato",      text=T["dupe_col_date"])
 
         self._tree.column("valg",      width=28,  stretch=False, anchor="center")
         self._tree.column("filnavn",   width=190, stretch=True)
@@ -672,7 +675,7 @@ class DubletVindue(tk.Toplevel):
             except Exception:
                 spares = 0
             g_id = self._tree.insert("", "end", tags=("gruppe",),
-                values=(f"  📁  Gruppe {i}  –  {len(filer)} filer  –  kan spare {_format_bytes(spares)}",
+                values=(T["dupe_group"].format(i, len(filer), _format_bytes(spares)),
                         "", "", "", ""))
             self._gruppe_ids.add(g_id)
 
@@ -697,7 +700,7 @@ class DubletVindue(tk.Toplevel):
         prog_ramme = tk.Frame(self, bg=PANEL, padx=16, pady=6)
         prog_ramme.pack(fill="x", padx=16, pady=(0, 4))
 
-        self._prog_lbl = tk.Label(prog_ramme, text="Klar",
+        self._prog_lbl = tk.Label(prog_ramme, text=T["dupe_ready"],
                                   font=("Segoe UI", 9), bg=PANEL, fg=DIM, anchor="w")
         self._prog_lbl.pack(fill="x")
 
@@ -732,7 +735,7 @@ class DubletVindue(tk.Toplevel):
         bund.pack(fill="x", padx=16)
 
         self._slet_knap = tk.Button(
-            bund, text="🗑  Slet markerede til papirkurv",
+            bund, text=T["dupe_btn_del"],
             font=("Segoe UI", 11, "bold"),
             bg=RØD, fg="#1e1e2e", relief="flat", padx=20, pady=8,
             cursor="hand2", activebackground="#e07090",
@@ -743,11 +746,11 @@ class DubletVindue(tk.Toplevel):
         knap_s = dict(font=("Segoe UI", 10), bg="#45475a", fg=TEKST,
                       relief="flat", padx=14, pady=8, cursor="hand2",
                       activebackground="#585b70", activeforeground=TEKST)
-        tk.Button(bund, text="☑  Vælg alle dubletter",
+        tk.Button(bund, text=T["dupe_btn_sel"],
                   command=self._vælg_alle, **knap_s).pack(side="left", padx=(0, 6))
-        tk.Button(bund, text="☐  Fravælg alle",
+        tk.Button(bund, text=T["dupe_btn_desel"],
                   command=self._fravælg_alle, **knap_s).pack(side="left", padx=(0, 6))
-        tk.Button(bund, text="✖  Luk", command=self.destroy,
+        tk.Button(bund, text=T["btn_close"], command=self.destroy,
                   font=("Segoe UI", 10), bg=PANEL, fg=TEKST, relief="flat",
                   padx=14, pady=8, cursor="hand2",
                   activebackground="#3a3a5e", activeforeground=TEKST
@@ -772,7 +775,7 @@ class DubletVindue(tk.Toplevel):
             if v and os.path.exists(self._fil_stier.get(i, ""))
         )
         self._stats_lbl.config(
-            text=f"  {antal} filer markeret til sletning  ·  {_format_bytes(bytes_)} frigøres"
+            text=T["dupe_stats"].format(antal, _format_bytes(bytes_))
         )
 
     def _vælg_alle(self):
@@ -799,21 +802,19 @@ class DubletVindue(tk.Toplevel):
         markerede = [(i, self._fil_stier[i])
                      for i, v in self._fil_valgt.items() if v]
         if not markerede:
-            messagebox.showinfo("Ingen valgt", "Ingen filer er markeret til sletning.")
+            messagebox.showinfo(T["dupe_none_t"], T["dupe_none"])
             return
         bytes_ = sum(os.path.getsize(s) for _, s in markerede if os.path.exists(s))
         if not messagebox.askyesno(
-            "Bekræft sletning",
-            f"{len(markerede)} filer flyttes til papirkurven.\n"
-            f"Det frigiver {_format_bytes(bytes_)}.\n\n"
-            "Filerne kan gendannes fra papirkurven.\nVil du fortsætte?"
+            T["dupe_confirm_t"],
+            T["dupe_confirm"].format(len(markerede), _format_bytes(bytes_))
         ):
             return
 
         self._slet_knap.config(state="disabled")
         self._progressbar["value"] = 0
         self._pct_lbl.config(text="0%")
-        self._prog_lbl.config(text="Sletter filer...", fg=TEKST)
+        self._prog_lbl.config(text=T["dupe_deleting"], fg=TEKST)
         self.update_idletasks()
 
         total = len(markerede)
@@ -830,15 +831,15 @@ class DubletVindue(tk.Toplevel):
                 del self._fil_valgt[item_id]
                 del self._fil_stier[item_id]
                 slettet += 1
-                self._log(f"  ✔  Papirkurv: {os.path.basename(sti)}", "grøn")
+                self._log(T["dupe_trash_ok"].format(os.path.basename(sti)), "grøn")
             else:
-                self._log(f"  ✘  Fejl: {os.path.basename(sti)}", "rød")
+                self._log(T["dupe_trash_fail"].format(os.path.basename(sti)), "rød")
                 fejl += 1
 
         self._progressbar["value"] = 100
         self._pct_lbl.config(text="100%")
-        self._prog_lbl.config(text="Færdig!", fg=GRØN)
-        self._log(f"\n  🏁  Faerdig!  Slettet: {slettet}  |  Fejl: {fejl}",
+        self._prog_lbl.config(text=T["dupe_done_lbl"], fg=GRØN)
+        self._log(T["dupe_del_done"].format(slettet, fejl),
                   "grøn" if not fejl else "gul")
         self._opdater_stats()
         self._slet_knap.config(state="normal")
@@ -850,7 +851,7 @@ class DubletVindue(tk.Toplevel):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title(f"Fil-Organisator  v{VERSION}")
+        self.title(T["app_title"].format(VERSION))
         self.resizable(True, True)
         self.minsize(660, 500)
         self.configure(bg=BG)
@@ -880,9 +881,16 @@ class App(tk.Tk):
         # ── Titel (fast i toppen) ─────────────────────
         top = tk.Frame(self, bg=ACCENT, pady=14)
         top.pack(fill="x", side="top")
-        tk.Label(top, text="📂  Fil-Organisator",
-                 font=("Segoe UI", 20, "bold"), bg=ACCENT, fg="white").pack()
-        tk.Label(top, text=f"USB-udgave  v{VERSION}  –  Organisér billeder, videoer og dokumenter",
+        titel_ramme = tk.Frame(top, bg=ACCENT)
+        titel_ramme.pack(fill="x")
+        tk.Label(titel_ramme, text=T["app_heading"],
+                 font=("Segoe UI", 20, "bold"), bg=ACCENT, fg="white").pack(side="left", expand=True)
+        tk.Button(titel_ramme, text=f"🌐  {T['lang_btn']}", font=("Segoe UI", 11),
+                  bg=ACCENT, fg="white", relief="flat", bd=0, cursor="hand2",
+                  padx=12, pady=4,
+                  activebackground="#6a58e0", activeforeground="white",
+                  command=self._skift_sprog).pack(side="right", padx=(0, 16))
+        tk.Label(top, text=T["app_sub"].format(VERSION),
                  font=("Segoe UI", 9), bg=ACCENT, fg="#e0d9ff").pack()
 
         # ── Knapper (faste i bunden) ──────────────────
@@ -890,7 +898,7 @@ class App(tk.Tk):
         bund.pack(fill="x", side="bottom")
 
         self.start_knap = tk.Button(
-            bund, text="▶  Start organisering",
+            bund, text=T["btn_start"],
             font=("Segoe UI", 12, "bold"),
             bg=ACCENT, fg="white", relief="flat", padx=26, pady=10,
             cursor="hand2", activebackground="#6a58e0", activeforeground="white",
@@ -899,7 +907,7 @@ class App(tk.Tk):
         self.start_knap.pack(side="left", padx=(30, 8))
 
         self.stop_knap = tk.Button(
-            bund, text="⏹  Stop",
+            bund, text=T["btn_stop"],
             font=("Segoe UI", 12),
             bg="#45475a", fg=TEKST, relief="flat", padx=26, pady=10,
             cursor="hand2", activebackground="#585b70", activeforeground=TEKST,
@@ -908,7 +916,7 @@ class App(tk.Tk):
         self.stop_knap.pack(side="left", padx=8)
 
         self.dublet_knap = tk.Button(
-            bund, text="🔍  Find dubletter",
+            bund, text=T["btn_dupes"],
             font=("Segoe UI", 12),
             bg="#313145", fg=TEKST, relief="flat", padx=20, pady=10,
             cursor="hand2", activebackground="#3a3a5e", activeforeground=TEKST,
@@ -917,7 +925,7 @@ class App(tk.Tk):
         self.dublet_knap.pack(side="left", padx=8)
 
         tk.Button(
-            bund, text="✖  Luk",
+            bund, text=T["btn_close"],
             font=("Segoe UI", 12),
             bg=PANEL, fg=TEKST, relief="flat", padx=26, pady=10,
             cursor="hand2", activebackground="#3a3a5e", activeforeground=TEKST,
@@ -965,7 +973,7 @@ class App(tk.Tk):
         wrap.pack(fill="both", expand=True, padx=24, pady=12)
 
         # ── SØGE-TILSTAND ────────────────────────────
-        self._sektion(wrap, "🔎  Hvad skal søges igennem?")
+        self._sektion(wrap, T["sec_search"])
         mode_ramme = tk.Frame(wrap, bg=PANEL, padx=16, pady=10)
         mode_ramme.pack(fill="x", pady=(0, 6))
 
@@ -973,7 +981,7 @@ class App(tk.Tk):
         mode_top.pack(fill="x")
 
         tk.Radiobutton(
-            mode_top, text="  Søg på hele drevet",
+            mode_top, text=T["search_drive"],
             variable=self._søge_mode, value="drev",
             font=("Segoe UI", 11), bg=PANEL, fg=TEKST,
             selectcolor=BG, activebackground=PANEL, activeforeground=TEKST,
@@ -981,7 +989,7 @@ class App(tk.Tk):
         ).pack(side="left", padx=(0, 20))
 
         tk.Radiobutton(
-            mode_top, text="  Vælg specifikke mapper",
+            mode_top, text=T["search_folders"],
             variable=self._søge_mode, value="mapper",
             font=("Segoe UI", 11), bg=PANEL, fg=TEKST,
             selectcolor=BG, activebackground=PANEL, activeforeground=TEKST,
@@ -996,7 +1004,7 @@ class App(tk.Tk):
         self.drev_ramme = tk.Frame(_søge_container, bg=PANEL, padx=16, pady=10)
         self.drev_ramme.pack(fill="x", pady=(0, 6))
 
-        tk.Label(self.drev_ramme, text="💾  Vælg drev",
+        tk.Label(self.drev_ramme, text=T["lbl_drive"],
                  font=("Segoe UI", 10, "bold"), bg=PANEL, fg=DIM).pack(anchor="w", pady=(0,6))
 
         drev_knapper = tk.Frame(self.drev_ramme, bg=PANEL)
@@ -1017,28 +1025,28 @@ class App(tk.Tk):
         mappe_header = tk.Frame(self.mappe_ydre, bg=PANEL)
         mappe_header.pack(fill="x", pady=(0, 8))
 
-        tk.Label(mappe_header, text="📁  Valgte mapper",
+        tk.Label(mappe_header, text=T["lbl_folders"],
                  font=("Segoe UI", 10, "bold"), bg=PANEL, fg=DIM).pack(side="left")
 
         knap_style = dict(font=("Segoe UI", 9), relief="flat", padx=10, pady=4,
                           cursor="hand2", bd=0)
 
         tk.Button(
-            mappe_header, text="＋  Tilføj mappe",
+            mappe_header, text=T["btn_add"],
             bg=ACCENT, fg="white",
             activebackground="#6a58e0", activeforeground="white",
             command=self._tilføj_mappe, **knap_style
         ).pack(side="right", padx=(4, 0))
 
         tk.Button(
-            mappe_header, text="✖  Fjern valgt",
+            mappe_header, text=T["btn_remove"],
             bg="#45475a", fg=TEKST,
             activebackground="#585b70", activeforeground=TEKST,
             command=self._fjern_mappe, **knap_style
         ).pack(side="right", padx=(4, 0))
 
         tk.Button(
-            mappe_header, text="🗑  Ryd alle",
+            mappe_header, text=T["btn_clear"],
             bg="#45475a", fg=TEKST,
             activebackground="#585b70", activeforeground=TEKST,
             command=self._ryd_mapper, **knap_style
@@ -1060,7 +1068,7 @@ class App(tk.Tk):
 
         self.ingen_mapper_lbl = tk.Label(
             self.mappe_ydre,
-            text="  Ingen mapper valgt endnu  –  klik '＋ Tilføj mappe' for at vælge",
+            text=T["no_folders"],
             font=("Segoe UI", 9, "italic"), bg=PANEL, fg=DIM, anchor="w"
         )
         self.ingen_mapper_lbl.pack(fill="x", pady=(4, 0))
@@ -1068,15 +1076,15 @@ class App(tk.Tk):
         self._opdater_mode()
 
         # ── TYPE-VALG ─────────────────────────────────
-        self._sektion(wrap, "🗂️  Hvad skal organiseres?")
+        self._sektion(wrap, T["sec_type"])
         type_ramme = tk.Frame(wrap, bg=PANEL, padx=16, pady=10)
         type_ramme.pack(fill="x", pady=(0, 6))
 
         self.valgt_type = tk.StringVar(value="billeder")
         typer = [
-            ("📷  Billeder",   "billeder",   "→ Drev:\\Billeder\\År\\Måned\\"),
-            ("🎬  Videoer",    "videoer",    "→ Drev:\\Film\\År\\Måned\\"),
-            ("📄  Dokumenter", "dokumenter", "→ Drev:\\Dokumenter\\Word|PDF|Excel\\"),
+            (T["type_photos"], "billeder",   T["hint_photos"]),
+            (T["type_videos"], "videoer",    T["hint_videos"]),
+            (T["type_docs"],   "dokumenter", T["hint_docs"]),
         ]
         for label, val, hint in typer:
             række = tk.Frame(type_ramme, bg=PANEL)
@@ -1096,13 +1104,13 @@ class App(tk.Tk):
         self.sort_mode_ramme = tk.Frame(wrap, bg="#232336", padx=16, pady=12)
 
         tk.Label(self.sort_mode_ramme,
-                 text="  Sorter billeder efter:",
+                 text=T["sort_label"],
                  font=("Segoe UI", 9, "bold"), bg="#232336", fg=DIM
                  ).pack(anchor="w", pady=(0, 6))
 
         tk.Radiobutton(
             self.sort_mode_ramme,
-            text="  📅  Dato  –  År / Måned",
+            text=T["sort_date"],
             variable=self.valgt_sort, value="dato",
             font=("Segoe UI", 11), bg="#232336", fg=TEKST,
             selectcolor=BG, activebackground="#232336", activeforeground=TEKST,
@@ -1111,7 +1119,7 @@ class App(tk.Tk):
 
         tk.Radiobutton(
             self.sort_mode_ramme,
-            text="  🌍  GPS-lokation  –  Land / By",
+            text=T["sort_gps"],
             variable=self.valgt_sort, value="gps",
             font=("Segoe UI", 11), bg="#232336", fg=TEKST,
             selectcolor=BG, activebackground="#232336", activeforeground=TEKST,
@@ -1120,7 +1128,7 @@ class App(tk.Tk):
 
         tk.Label(
             self.sort_mode_ramme,
-            text="     Kræver GPS-data i billedet (smartphones gemmer dette automatisk)",
+            text=T["sort_gps_hint"],
             font=("Segoe UI", 8, "italic"), bg="#232336", fg=DIM
         ).pack(anchor="w", pady=(0, 2))
 
@@ -1128,11 +1136,11 @@ class App(tk.Tk):
         self.sort_mode_ramme.pack(fill="x", pady=(0, 6))
 
         # ── PROGRESS ─────────────────────────────────
-        self._sektion(wrap, "⏳  Fremgang")
+        self._sektion(wrap, T["sec_progress"])
         prog_ramme = tk.Frame(wrap, bg=PANEL, padx=16, pady=10)
         prog_ramme.pack(fill="x", pady=(0, 6))
 
-        self.status_lbl = tk.Label(prog_ramme, text="Klar til at starte...",
+        self.status_lbl = tk.Label(prog_ramme, text=T["status_ready"],
                                    font=("Segoe UI", 9), bg=PANEL, fg=DIM, anchor="w")
         self.status_lbl.pack(fill="x")
 
@@ -1150,7 +1158,7 @@ class App(tk.Tk):
         self.pct_lbl.pack(anchor="e")
 
         # ── LOG ──────────────────────────────────────
-        self._sektion(wrap, "📋  Log")
+        self._sektion(wrap, T["sec_log"])
         log_ydre = tk.Frame(wrap, bg=PANEL, pady=2, padx=2)
         log_ydre.pack(fill="x", pady=(0, 6))
 
@@ -1186,14 +1194,14 @@ class App(tk.Tk):
         except Exception:
             sort = "dato"
         if type_ == "billeder" and sort == "gps":
-            navn = "Billeder efter lokation"
+            navn = T["dest_gps"]
         else:
-            navne = {"billeder": "Billeder", "videoer": "Film", "dokumenter": "Dokumenter"}
-            navn  = navne.get(type_, "Billeder")
+            navne = {"billeder": T["dest_photos"], "videoer": T["dest_videos"], "dokumenter": T["dest_docs"]}
+            navn  = navne.get(type_, T["dest_photos"])
         if hasattr(self, "_auto_dest_lbl"):
             try:
                 self._auto_dest_lbl.config(
-                    text=f"  Filerne flyttes til:  [Drev:]\\{navn}\\  (oprettes automatisk)"
+                    text=T["dest_auto"].format(navn)
                 )
             except Exception:
                 pass
@@ -1208,7 +1216,7 @@ class App(tk.Tk):
     def _vælg_dest_mappe(self):
         """Åbn mappe-browser til destinations-valg."""
         valgt = filedialog.askdirectory(
-            title="Vælg destinations-mappe (fx din eksisterende Billeder-mappe)",
+            title=T["dlg_dest"],
             initialdir="C:\\"
         )
         if valgt:
@@ -1231,7 +1239,7 @@ class App(tk.Tk):
         """Åbn mappe-browser og tilføj valgt mappe til listen."""
         start_sti = self.valgt_drev.get() if self.valgt_drev.get() else "C:\\"
         valgt = filedialog.askdirectory(
-            title="Vælg en mappe der skal søges i",
+            title=T["dlg_add_folder"],
             initialdir=start_sti
         )
         if valgt and valgt not in self._valgte_mapper:
@@ -1275,6 +1283,16 @@ class App(tk.Tk):
             self.status_lbl.config(text=filnavn[:70])
         self.after(0, _)
 
+    def _skift_sprog(self):
+        """Åbn sprogvælger og genstart GUI med nyt sprog."""
+        picker = SprogVælger(self)
+        self.wait_window(picker)
+        if picker.valgt:
+            set_sprog(picker.valgt)
+            self.destroy()
+            app = App()
+            app.mainloop()
+
     def stop(self):
         self._stop = True
         self.stop_knap.config(state="disabled")
@@ -1295,9 +1313,7 @@ class App(tk.Tk):
             auto_drev  = drev[0]
         else:
             if not self._valgte_mapper:
-                messagebox.showwarning("Ingen mapper",
-                    "Du har ikke valgt nogen mapper endnu.\n"
-                    "Klik '+ Tilfoej mappe' for at vaelge mindst een mappe.")
+                messagebox.showwarning(T["dlg_no_folders_t"], T["dlg_no_folders"])
                 return
             rødder     = self._valgte_mapper
             søge_tekst = f"{len(rødder)} valgte mapper"
@@ -1321,25 +1337,24 @@ class App(tk.Tk):
             dest = custom
         else:
             if type_ == "billeder" and sort_mode == "gps":
-                dest_navn = "Billeder efter lokation"
+                dest_navn = T["dest_gps"]
             else:
                 dest_navn = {
-                    "billeder":   "Billeder",
-                    "videoer":    "Film",
-                    "dokumenter": "Dokumenter"
+                    "billeder":   T["dest_photos"],
+                    "videoer":    T["dest_videos"],
+                    "dokumenter": T["dest_docs"]
                 }[type_]
             dest = auto_drev + ":\\" + dest_navn
 
         if not messagebox.askyesno(
-            "Bekræft",
-            f"Filer FLYTTES fra:\n  {søge_tekst}\n\ntil:\n  {dest}\n\n"
-            "Har du lavet en sikkerhedskopi?\nVil du fortsætte?"
+            T["dlg_confirm_t"],
+            T["dlg_confirm"].format(søge_tekst, dest)
         ):
             return
 
         self._kører = True
         self._stop  = False
-        self.start_knap.config(state="disabled", text="⏳  Kører...")
+        self.start_knap.config(state="disabled", text=T["btn_running"])
         self.stop_knap.config(state="normal")
         self.progressbar["value"] = 0
         self.pct_lbl.config(text="0%")
@@ -1349,7 +1364,7 @@ class App(tk.Tk):
         self.log_boks.configure(state="disabled")
 
         if mode == "mapper":
-            self.log(f"📁  Søger i {len(rødder)} valgte mapper:")
+            self.log(T["log_search_folders"].format(len(rødder)))
             for m in rødder:
                 self.log(f"     {m}")
             self.log("")
@@ -1366,11 +1381,11 @@ class App(tk.Tk):
 
             def færdig():
                 self._kører = False
-                self.start_knap.config(state="normal", text="▶  Start organisering")
+                self.start_knap.config(state="normal", text=T["btn_start"])
                 self.stop_knap.config(state="disabled")
                 self.progressbar["value"] = 100
                 self.pct_lbl.config(text="100%")
-                self.status_lbl.config(text="Færdig!")
+                self.status_lbl.config(text=T["status_done"])
             self.after(0, færdig)
 
         threading.Thread(target=kør, daemon=True).start()
@@ -1386,9 +1401,7 @@ class App(tk.Tk):
             søge_tekst = self.valgt_drev.get()
         else:
             if not self._valgte_mapper:
-                messagebox.showwarning("Ingen mapper",
-                    "Du har ikke valgt nogen mapper endnu.\n"
-                    "Klik '+ Tilfoej mappe' for at vaelge mindst een mappe.")
+                messagebox.showwarning(T["dlg_no_folders_t"], T["dlg_no_folders"])
                 return
             rødder     = self._valgte_mapper
             søge_tekst = f"{len(rødder)} valgte mapper"
@@ -1396,7 +1409,7 @@ class App(tk.Tk):
         self._kører = True
         self._stop  = False
         self.start_knap.config(state="disabled")
-        self.dublet_knap.config(state="disabled", text="⏳  Scanner...")
+        self.dublet_knap.config(state="disabled", text=T["btn_scanning"])
         self.stop_knap.config(state="normal")
         self.progressbar["value"] = 0
         self.pct_lbl.config(text="0%")
@@ -1404,7 +1417,7 @@ class App(tk.Tk):
         self.log_boks.configure(state="normal")
         self.log_boks.delete("1.0", "end")
         self.log_boks.configure(state="disabled")
-        self.log(f"🔍  Søger efter dubletter i: {søge_tekst}\n")
+        self.log(T["log_search_in"].format(søge_tekst) + "\n")
 
         def kør():
             grupper = find_dubletter_filer(
@@ -1414,16 +1427,15 @@ class App(tk.Tk):
             def færdig():
                 self._kører = False
                 self.start_knap.config(state="normal")
-                self.dublet_knap.config(state="normal", text="🔍  Find dubletter")
+                self.dublet_knap.config(state="normal", text=T["btn_dupes"])
                 self.stop_knap.config(state="disabled")
                 self.progressbar["value"] = 100
                 self.pct_lbl.config(text="100%")
-                self.status_lbl.config(text="Scanning færdig!")
+                self.status_lbl.config(text=T["status_scan_done"])
                 if grupper:
                     DubletVindue(self, grupper)
                 else:
-                    messagebox.showinfo("Ingen dubletter",
-                        "Ingen dubletter fundet i det valgte område.")
+                    messagebox.showinfo(T["dupe_no_t"], T["dupe_no"])
             self.after(0, færdig)
 
         threading.Thread(target=kør, daemon=True).start()
@@ -1441,6 +1453,17 @@ if __name__ == "__main__":
             sys.exit()
     except Exception:
         pass
+
+    # ── Sprog-valg ──────────────────────────────────
+    saved = init_sprog()
+    if not saved:
+        # Første opstart: vis sprogvælger
+        root = tk.Tk()
+        root.withdraw()
+        picker = SprogVælger(root)
+        root.wait_window(picker)
+        root.destroy()
+        set_sprog(picker.valgt or "en")
 
     app = App()
     app.mainloop()
