@@ -1,59 +1,74 @@
-# Fil-Organisator
+# Fil-Organisator / File Organizer
+
+Automatically organize photos, videos and documents from your drive or specific folders.
 
 Organisér automatisk billeder, videoer og dokumenter fra dit drev eller specifikke mapper.
 
-## Funktioner
+## Features / Funktioner
 
-- **Billeder** – sortér efter dato (EXIF) eller GPS-lokation (Land/By)
-- **Videoer** – sortér efter dato → `Drev:\Film\År\Måned\`
-- **Dokumenter** – sortér i Word / PDF / Excel mapper
-- **Dublet-scanner** – find og slet duplikerede filer (flyttes til papirkurven)
-- Scanner hele drev ELLER specifikke mapper
-- Springer system/spil-mapper over automatisk
-- Progress-bar + log i GUI
-- Stop-knap til at afbryde
+- **Photos / Billeder** – sort by date (EXIF) or GPS location (Country/City)
+- **Videos / Videoer** – sort by date → `Drive:\Videos\Year\Month\`
+- **Documents / Dokumenter** – sort into Word / PDF / Excel folders
+- **Duplicate scanner / Dublet-scanner** – find and delete duplicate files (moved to recycle bin)
+- Scan entire drives OR specific folders
+- Automatically skips system/game folders
+- Progress bar + log in GUI
+- Stop button to cancel at any time
+
+## 🌐 Multi-language support (10 languages)
+
+Language picker on first launch – switch anytime via the 🌐 button in the title bar.
+
+| | Language | | Language |
+|---|---|---|---|
+| 🇩🇰 | Dansk | 🇫🇷 | Français |
+| 🇬🇧 | English | 🇸🇦 | العربية |
+| 🇨🇳 | 简体中文 | 🇧🇩 | বাংলা |
+| 🇮🇳 | हिन्दी | 🇧🇷 | Português |
+| 🇪🇸 | Español | 🇷🇺 | Русский |
 
 ## Installation
 
 ### Windows
-1. Download `FilOrganisator_Setup.exe` fra [Releases](../../releases)
-2. Kør installeren og følg guiden
-3. Start fra Startmenuen eller skrivebordet
+1. Download `FilOrganisator_Setup.exe` from [Releases](../../releases)
+2. Run the installer and follow the wizard
+3. Launch from Start Menu or desktop shortcut
 
 ### Linux (Ubuntu)
-1. Download `Linux`-mappen fra [Releases](../../releases)
-2. Åbn en terminal i mappen
-3. Kør: `bash installer.sh`
+1. Download `FilOrganisator_Linux.tar.gz` and `installer.sh` from [Releases](../../releases)
+2. Open a terminal in the download folder
+3. Run: `bash installer.sh`
 
-### Fra kildekode (kræver Python)
+### From source (requires Python)
 ```bash
 pip install Pillow exifread reverse_geocoder send2trash
 cd "den Simple version"
 python organisator.py
 ```
 
-## Byg selv
+## Build it yourself
 
 ### Windows installer
 ```bash
 byg_installer.bat
 ```
-Kræver [Inno Setup 6](https://jrsoftware.org/isdl.php) for at lave installeren.
+Requires [Inno Setup 6](https://jrsoftware.org/isdl.php) to create the installer.
 
 ### Linux
 ```bash
 bash byg_linux.sh
 ```
 
-## Skærmbillede
+## Screenshots
 
-Programmet har et mørkt GUI-tema med sektioner for:
-- Valg af drev/mapper
-- Filtype (billeder, videoer, dokumenter)
-- Sorteringsmetode
-- Progress og log
+Dark-themed GUI with sections for:
+- Drive/folder selection
+- File type (photos, videos, documents)
+- Sort method (date or GPS location)
+- Progress bar and log
+- Duplicate scanner with file selection
 
-## Afhængigheder
+## Dependencies
 
 - Python 3.8+
 - Pillow
@@ -61,6 +76,6 @@ Programmet har et mørkt GUI-tema med sektioner for:
 - reverse_geocoder
 - send2trash
 
-## Sprog
+## License
 
-Programmet er på dansk (GUI og kode).
+Free to use and share.
