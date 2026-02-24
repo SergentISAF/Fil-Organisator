@@ -1,0 +1,67 @@
+½================================================
+  FIL-ORGANISATOR  |  USB-udgave  v2.0
+================================================
+
+INDHOLD PÅ USB-STIKKET:
+  START_ORGANISATOR.bat   ← Dobbeltklik her for at starte
+  organisator.py          ← Selve programmet
+  LÆS_MIG.txt             ← Denne fil
+
+------------------------------------------------
+FØRSTE GANG PÅ EN NY PC:
+------------------------------------------------
+
+1. Sæt USB-stikket i PC'en
+
+2. Dobbeltklik på:  START_ORGANISATOR.bat
+
+3. Programmet checker automatisk om Python
+   er installeret:
+
+   ✔ Python er installeret:
+     Manglende pakker installeres automatisk,
+     og programmet starter.
+
+   ✘ Python mangler:
+     Du får en vejledning på skærmen og kan
+     vælge at åbne Python-siden i browseren.
+     Installer Python, og kør filen igen.
+
+------------------------------------------------
+INSTALLER PYTHON (KUN HVIS DET MANGLER):
+------------------------------------------------
+
+1. Gå til:  https://www.python.org/downloads/
+2. Klik på den store gule "Download Python"-knap
+3. Åbn den downloadede fil
+4. VIGTIGT: Sæt flueben ved "Add Python to PATH"
+5. Klik "Install Now"
+6. Kør START_ORGANISATOR.bat igen
+
+------------------------------------------------
+BRUG AF PROGRAMMET:
+------------------------------------------------
+
+1. Vælg hvilket DREV der skal søges på
+   (alle tilgængelige drev vises automatisk)
+
+2. Vælg hvad der skal organiseres:
+   📷 Billeder   → Drev:\Billeder\År\Måned\
+   🎬 Videoer    → Drev:\Film\År\Måned\
+   📄 Dokumenter → Drev:\Dokumenter\Word|PDF|Excel\
+
+3. Klik "Start organisering"
+
+4. Bekræft at du har lavet en sikkerhedskopi
+
+5. Følg fremgangen i progress-baren og loggen
+
+Du kan til enhver tid klikke STOP for at afbryde.
+
+------------------------------------------------
+VIGTIGT:
+------------------------------------------------
+⚠ Filer FLYTTES – de slettes fra original placering.
+  Lav altid en sikkerhedskopi inden du starter!
+
+================================================

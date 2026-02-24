@@ -1,0 +1,20 @@
+# PyInstaller build
+build/
+dist/
+dist_linux/
+build_linux/
+*.spec
+Output/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Færdige versioner (for store til GitHub)
+Færdige version/
+
+# Temp
+*.tmp
+pak_linux.sh
+start_linux_build.bat
